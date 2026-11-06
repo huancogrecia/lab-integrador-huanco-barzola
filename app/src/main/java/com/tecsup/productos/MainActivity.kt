@@ -12,7 +12,7 @@ import com.tecsup.productos.ui.navigation.AppNav
 import com.tecsup.productos.ui.theme.ProductosTheme
 
 class MainActivity : ComponentActivity() {
-    private val container = AppContainer()
+    private val container by lazy { AppContainer(applicationContext) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -2,6 +2,7 @@ package com.tecsup.productos.data.local
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
@@ -24,6 +25,23 @@ interface ItemDao {
 
     @Upsert
     suspend fun guardarTodos(items: List<ItemEntity>)
+
+    @Query("DELETE FROM items WHERE id NOT IN (:ids)")
+    suspend fun borrarFueraDeLista(ids: List<Int>)
+
+    @Transaction
+    suspend fun sincronizar(items: List<ItemEntity>) {
+        val idsFavoritos = idsFavoritos().toSet()
+        val sincronizados = items.map { item ->
+            item.copy(esFavorito = item.id in idsFavoritos)
+        }
+        if (sincronizados.isEmpty()) {
+            borrarTodo()
+        } else {
+            guardarTodos(sincronizados)
+            borrarFueraDeLista(sincronizados.map(ItemEntity::id))
+        }
+    }
 
     @Query("UPDATE items SET esFavorito = NOT esFavorito WHERE id = :id")
     suspend fun alternarFavorito(id: Int)

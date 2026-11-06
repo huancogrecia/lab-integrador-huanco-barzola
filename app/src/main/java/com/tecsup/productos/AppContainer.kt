@@ -1,16 +1,16 @@
 package com.tecsup.productos
 
+import android.content.Context
+import com.tecsup.productos.data.local.AppDatabase
 import com.tecsup.productos.data.remote.RetrofitClient
 import com.tecsup.productos.data.repository.ItemRepository
-import com.tecsup.productos.data.repository.ItemRepositoryApi
+import com.tecsup.productos.data.repository.ItemRepositoryImpl
 
-class AppContainer {
-    val itemRepository: ItemRepository = ItemRepositoryApi(
+class AppContainer(context: Context) {
+    private val itemDao = AppDatabase.obtener(context.applicationContext).itemDao()
+
+    val itemRepository: ItemRepository = ItemRepositoryImpl(
         api = RetrofitClient.apiService,
-        categoria = CATEGORIA_PRODUCTOS,
+        dao = itemDao,
     )
-
-    companion object {
-        const val CATEGORIA_PRODUCTOS = "laptops"
-    }
 }
