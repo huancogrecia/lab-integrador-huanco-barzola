@@ -17,16 +17,28 @@ import java.io.IOException
 class ListaViewModel(private val repo: ItemRepository) : ViewModel() {
     private val _estado = MutableStateFlow<UiState<List<Item>>>(UiState.Cargando)
     val estado = _estado.asStateFlow()
+
+    private val _aviso = MutableStateFlow<String?>(null)
+    val aviso = _aviso.asStateFlow()
+
     private var carga: Job? = null
     private var primeraCargaTerminada = false
+    private var refrescoEnCurso = false
+    private var errorSinDatos: Throwable? = null
 
     init {
         viewModelScope.launch {
             repo.items
-                .catch { error -> _estado.value = UiState.Error(mensajeDe(error)) }
+                .catch { error ->
+                    errorSinDatos = error
+                    _estado.value = UiState.Error(mensajeDe(error))
+                }
                 .collect { lista ->
-                    if (lista.isNotEmpty() || primeraCargaTerminada) {
-                        _estado.value = UiState.Exito(lista)
+                    when {
+                        lista.isNotEmpty() -> _estado.value = UiState.Exito(lista)
+                        primeraCargaTerminada && !refrescoEnCurso && errorSinDatos == null -> {
+                            _estado.value = UiState.Exito(lista)
+                        }
                     }
                 }
         }
@@ -36,18 +48,38 @@ class ListaViewModel(private val repo: ItemRepository) : ViewModel() {
     fun cargar() {
         carga?.cancel()
         carga = viewModelScope.launch {
-            if (repo.items.first().isEmpty()) {
+            val actuales = repo.items.first()
+            refrescoEnCurso = true
+            if (actuales.isEmpty()) {
                 _estado.value = UiState.Cargando
             }
 
             val resultado = repo.refrescar()
-            primeraCargaTerminada = true
             val guardados = repo.items.first()
-            _estado.value = resultado.fold(
-                onSuccess = { UiState.Exito(guardados) },
+            primeraCargaTerminada = true
+            resultado.fold(
+                onSuccess = {
+                    errorSinDatos = null
+                    refrescoEnCurso = false
+                    _aviso.value = null
+                    _estado.value = UiState.Exito(guardados)
+                },
                 onFailure = { error ->
-                    if (guardados.isNotEmpty()) UiState.Exito(guardados)
-                    else UiState.Error(mensajeDe(error))
+                    if (guardados.isEmpty()) {
+                        errorSinDatos = error
+                        refrescoEnCurso = false
+                        _aviso.value = null
+                        _estado.value = UiState.Error(mensajeDe(error))
+                    } else {
+                        errorSinDatos = null
+                        refrescoEnCurso = false
+                        _aviso.value = if (error is IOException) {
+                            "Sin conexión: mostrando datos guardados"
+                        } else {
+                            "No se pudo actualizar: mostrando datos guardados"
+                        }
+                        _estado.value = UiState.Exito(guardados)
+                    }
                 },
             )
         }
