@@ -30,7 +30,7 @@ import com.tecsup.productos.ui.components.Cargando
 import com.tecsup.productos.ui.components.ErrorView
 
 @Composable
-fun ListaScreen(vm: ListaViewModel, modifier: Modifier = Modifier) {
+fun ListaScreen(vm: ListaViewModel, modifier: Modifier = Modifier, onProducto: (Int) -> Unit) {
     val estado by vm.estado.collectAsStateWithLifecycle()
     Column(modifier = modifier.fillMaxSize().padding(20.dp)) {
         Text("Productos", style = MaterialTheme.typography.headlineMedium)
@@ -49,7 +49,7 @@ fun ListaScreen(vm: ListaViewModel, modifier: Modifier = Modifier) {
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(actual.datos, key = { it.id }) { item ->
-                            TarjetaProducto(item)
+                            TarjetaProducto(item, onClick = { onProducto(item.id) })
                         }
                     }
                 }
@@ -59,8 +59,8 @@ fun ListaScreen(vm: ListaViewModel, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun TarjetaProducto(item: Item) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun TarjetaProducto(item: Item, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
