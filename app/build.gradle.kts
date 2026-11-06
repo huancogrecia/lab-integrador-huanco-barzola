@@ -35,5 +35,6 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
