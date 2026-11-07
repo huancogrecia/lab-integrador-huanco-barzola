@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -25,6 +27,7 @@ import com.tecsup.productos.ui.components.TarjetaProducto
 fun ListaScreen(vm: ListaViewModel, modifier: Modifier = Modifier, onProducto: (Int) -> Unit) {
     val estado by vm.estado.collectAsStateWithLifecycle()
     val aviso by vm.aviso.collectAsStateWithLifecycle()
+    val busqueda by vm.busqueda.collectAsStateWithLifecycle()
     Column(modifier = modifier.fillMaxSize().padding(20.dp)) {
         Text("Productos", style = MaterialTheme.typography.headlineMedium)
         Text(
@@ -32,6 +35,18 @@ fun ListaScreen(vm: ListaViewModel, modifier: Modifier = Modifier, onProducto: (
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp, bottom = 20.dp),
+        )
+        OutlinedTextField(
+            value = busqueda,
+            onValueChange = vm::cambiarBusqueda,
+            label = { Text("Buscar por nombre o marca") },
+            singleLine = true,
+            trailingIcon = {
+                if (busqueda.isNotEmpty()) {
+                    TextButton(onClick = { vm.cambiarBusqueda("") }) { Text("Limpiar") }
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
         )
         if (aviso != null) {
             Surface(
@@ -52,7 +67,7 @@ fun ListaScreen(vm: ListaViewModel, modifier: Modifier = Modifier, onProducto: (
             is UiState.Error -> ErrorView(actual.mensaje, vm::cargar)
             is UiState.Exito -> {
                 if (actual.datos.isEmpty()) {
-                    Text("No hay productos disponibles")
+                    Text(if (busqueda.isBlank()) "No hay productos disponibles" else "No se encontraron productos")
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(actual.datos, key = { it.id }) { item ->

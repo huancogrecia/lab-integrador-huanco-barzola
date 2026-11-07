@@ -8,6 +8,9 @@ import com.tecsup.productos.notification.Notificador
 import com.tecsup.productos.ui.UiState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
@@ -20,7 +23,25 @@ class ListaViewModel(
     private val notificador: Notificador,
 ) : ViewModel() {
     private val _estado = MutableStateFlow<UiState<List<Item>>>(UiState.Cargando)
-    val estado = _estado.asStateFlow()
+    private val _busqueda = MutableStateFlow("")
+    val busqueda = _busqueda.asStateFlow()
+
+    val estado = combine(_estado, _busqueda) { actual, texto ->
+        when (actual) {
+            is UiState.Exito -> {
+                val consulta = texto.trim()
+                UiState.Exito(actual.datos.filter { item ->
+                    item.titulo.contains(consulta, ignoreCase = true) ||
+                        item.subtitulo.substringBefore(" · ").contains(consulta, ignoreCase = true)
+                })
+            }
+            else -> actual
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiState.Cargando)
+
+    fun cambiarBusqueda(texto: String) {
+        _busqueda.value = texto
+    }
 
     private val _aviso = MutableStateFlow<String?>(null)
     val aviso = _aviso.asStateFlow()
