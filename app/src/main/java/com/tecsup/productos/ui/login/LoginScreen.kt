@@ -41,7 +41,6 @@ fun LoginScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text("Productos", style = MaterialTheme.typography.headlineLarge)
-        Text("Huanco y Barzola", style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(
             value = correo,
             onValueChange = { correo = it },

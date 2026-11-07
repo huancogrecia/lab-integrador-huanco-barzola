@@ -45,7 +45,6 @@ class NotificadorAndroid(context: Context) : Notificador {
         try {
             NotificationManagerCompat.from(appContext).notify(NOTIFICATION_ID, notificacion)
         } catch (_: SecurityException) {
-            // Si el permiso se revoca mientras la app está abierta, la app sigue funcionando.
         }
     }
 

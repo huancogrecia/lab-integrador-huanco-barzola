@@ -7,6 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.tecsup.productos.notification.NotificationPermissionEffect
 import com.tecsup.productos.ui.navigation.AppNav
@@ -19,7 +21,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            ProductosTheme {
+            val modoOscuro by container.preferenciasRepository.modoOscuro.collectAsState(
+                initial = false,
+            )
+            ProductosTheme(darkTheme = modoOscuro) {
                 NotificationPermissionEffect()
                 Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
                     AppNav(container = container, modifier = Modifier.padding(padding))

@@ -2,6 +2,8 @@ package com.tecsup.productos.ui.login
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,6 +14,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +36,7 @@ fun PerfilScreen(
     modifier: Modifier = Modifier,
 ) {
     val estado by vm.estado.collectAsStateWithLifecycle()
+    val modoOscuro by vm.modoOscuro.collectAsStateWithLifecycle()
     var confirmarSalida by rememberSaveable { mutableStateOf(false) }
     Column(
         modifier = modifier.fillMaxSize().padding(24.dp),
@@ -61,6 +65,17 @@ fun PerfilScreen(
                 }
                 Text("Ver favoritos", color = MaterialTheme.colorScheme.primary)
             }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Modo oscuro", style = MaterialTheme.typography.titleMedium)
+            Switch(
+                checked = modoOscuro,
+                onCheckedChange = vm::actualizarModoOscuro,
+            )
         }
         Button(onClick = { confirmarSalida = true }, modifier = Modifier.fillMaxWidth()) {
             Text("Cerrar sesión")
