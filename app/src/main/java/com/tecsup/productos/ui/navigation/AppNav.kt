@@ -37,6 +37,8 @@ import com.tecsup.productos.ui.lista.ListaViewModelFactory
 import com.tecsup.productos.ui.login.LoginScreen
 import com.tecsup.productos.ui.login.LoginViewModel
 import com.tecsup.productos.ui.login.LoginViewModelFactory
+import com.tecsup.productos.ui.login.PerfilViewModel
+import com.tecsup.productos.ui.login.PerfilViewModelFactory
 import com.tecsup.productos.ui.login.PerfilScreen
 
 private const val TAB_CATALOGO = "catalogo"
@@ -106,7 +108,16 @@ private fun NavegacionAutenticada(
                         ListaScreen(listaVm, onProducto = { productoId = it })
                     }
                 }
-                TAB_PERFIL -> PerfilScreen(sesion, loginVm::cerrarSesion)
+                TAB_PERFIL -> {
+                    val perfilFactory = remember(container) { PerfilViewModelFactory(container) }
+                    val perfilVm: PerfilViewModel = viewModel(factory = perfilFactory)
+                    PerfilScreen(
+                        sesion = sesion,
+                        vm = perfilVm,
+                        onCerrarSesion = loginVm::cerrarSesion,
+                        onVerFavoritos = { tabSeleccionada = TAB_FAVORITOS }
+                    )
+                }
                 else -> ListaScreen(
                     vm = listaVm,
                     onProducto = { productoId = it },
