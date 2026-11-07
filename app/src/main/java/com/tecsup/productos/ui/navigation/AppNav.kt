@@ -14,8 +14,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tecsup.productos.AppContainer
+import com.tecsup.productos.domain.model.Sesion
+import com.tecsup.productos.ui.UiState
+import com.tecsup.productos.ui.components.Cargando
 import com.tecsup.productos.ui.detalle.DetalleScreen
 import com.tecsup.productos.ui.detalle.DetalleViewModel
 import com.tecsup.productos.ui.detalle.DetalleViewModelFactory
@@ -25,12 +29,39 @@ import com.tecsup.productos.ui.favoritos.FavoritosViewModelFactory
 import com.tecsup.productos.ui.lista.ListaScreen
 import com.tecsup.productos.ui.lista.ListaViewModel
 import com.tecsup.productos.ui.lista.ListaViewModelFactory
+import com.tecsup.productos.ui.login.LoginScreen
+import com.tecsup.productos.ui.login.LoginViewModel
+import com.tecsup.productos.ui.login.LoginViewModelFactory
+import com.tecsup.productos.ui.login.PerfilScreen
 
 private const val TAB_CATALOGO = "catalogo"
 private const val TAB_FAVORITOS = "favoritos"
+private const val TAB_PERFIL = "perfil"
 
 @Composable
 fun AppNav(container: AppContainer, modifier: Modifier = Modifier) {
+    val loginFactory = remember(container) { LoginViewModelFactory(container) }
+    val loginVm: LoginViewModel = viewModel(factory = loginFactory)
+    val authState by loginVm.estado.collectAsStateWithLifecycle()
+
+    when (val estado = authState) {
+        UiState.Cargando -> Cargando(modifier)
+        is UiState.Error -> LoginScreen(loginVm, estado, modifier)
+        is UiState.Exito -> {
+            val sesion = estado.datos
+            if (sesion == null) LoginScreen(loginVm, estado, modifier)
+            else NavegacionAutenticada(container, loginVm, sesion, modifier)
+        }
+    }
+}
+
+@Composable
+private fun NavegacionAutenticada(
+    container: AppContainer,
+    loginVm: LoginViewModel,
+    sesion: Sesion,
+    modifier: Modifier,
+) {
     var productoId by rememberSaveable { mutableStateOf<Int?>(null) }
     var tabSeleccionada by rememberSaveable { mutableStateOf(TAB_CATALOGO) }
     val listaFactory = remember(container) { ListaViewModelFactory(container) }
@@ -49,13 +80,13 @@ fun AppNav(container: AppContainer, modifier: Modifier = Modifier) {
                 val factory = remember(container, id) { DetalleViewModelFactory(container, id) }
                 val vm: DetalleViewModel = viewModel(key = "detalle_$id", factory = factory)
                 DetalleScreen(vm = vm, onVolver = { productoId = null })
-            } else if (tabSeleccionada == TAB_FAVORITOS) {
-                FavoritosScreen(
+            } else when (tabSeleccionada) {
+                TAB_FAVORITOS -> FavoritosScreen(
                     vm = favoritosVm,
                     onProducto = { productoId = it },
                 )
-            } else {
-                ListaScreen(
+                TAB_PERFIL -> PerfilScreen(sesion, loginVm::cerrarSesion)
+                else -> ListaScreen(
                     vm = listaVm,
                     onProducto = { productoId = it },
                 )
@@ -75,6 +106,12 @@ fun AppNav(container: AppContainer, modifier: Modifier = Modifier) {
                     onClick = { tabSeleccionada = TAB_FAVORITOS },
                     icon = { Text("♥") },
                     label = { Text("Favoritos") },
+                )
+                NavigationBarItem(
+                    selected = tabSeleccionada == TAB_PERFIL,
+                    onClick = { tabSeleccionada = TAB_PERFIL },
+                    icon = { Text("●") },
+                    label = { Text("Perfil") },
                 )
             }
         }

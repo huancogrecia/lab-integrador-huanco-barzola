@@ -1,6 +1,8 @@
 package com.tecsup.productos
 
 import android.content.Context
+import com.tecsup.productos.data.auth.AuthRepository
+import com.tecsup.productos.data.auth.FirebaseAuthRepository
 import com.tecsup.productos.data.local.AppDatabase
 import com.tecsup.productos.data.remote.RetrofitClient
 import com.tecsup.productos.data.repository.ItemRepository
@@ -13,4 +15,5 @@ class AppContainer(context: Context) {
         api = RetrofitClient.apiService,
         dao = itemDao,
     )
+    val authRepository: AuthRepository = FirebaseAuthRepository()
 }
