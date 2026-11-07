@@ -26,14 +26,28 @@ class ListaViewModel(
     private val _busqueda = MutableStateFlow("")
     val busqueda = _busqueda.asStateFlow()
 
-    val estado = combine(_estado, _busqueda) { actual, texto ->
+    private val _orden = MutableStateFlow(OrdenProductos.NOMBRE_ASC)
+    val orden = _orden.asStateFlow()
+
+    val estado = combine(_estado, _busqueda, _orden) { actual, texto, seleccionado ->
         when (actual) {
             is UiState.Exito -> {
                 val consulta = texto.trim()
-                UiState.Exito(actual.datos.filter { item ->
+                val filtrados = actual.datos.filter { item ->
                     item.titulo.contains(consulta, ignoreCase = true) ||
                         item.subtitulo.substringBefore(" · ").contains(consulta, ignoreCase = true)
-                })
+                }
+                val ordenados = when (seleccionado) {
+                    OrdenProductos.NOMBRE_ASC -> filtrados.sortedBy { it.titulo.lowercase() }
+                    OrdenProductos.NOMBRE_DESC -> filtrados.sortedByDescending { it.titulo.lowercase() }
+                    OrdenProductos.PRECIO_ASC -> filtrados.sortedWith(
+                        compareBy<Item> { precioDe(it) == null }.thenBy { precioDe(it) }
+                    )
+                    OrdenProductos.PRECIO_DESC -> filtrados.sortedWith(
+                        compareBy<Item> { precioDe(it) == null }.thenByDescending { precioDe(it) }
+                    )
+                }
+                UiState.Exito(ordenados)
             }
             else -> actual
         }
@@ -42,6 +56,16 @@ class ListaViewModel(
     fun cambiarBusqueda(texto: String) {
         _busqueda.value = texto
     }
+
+    fun cambiarOrden(orden: OrdenProductos) {
+        _orden.value = orden
+    }
+
+    private fun precioDe(item: Item): Double? = item.subtitulo
+        .substringAfterLast(" · ")
+        .removePrefix("$")
+        .trim()
+        .toDoubleOrNull()
 
     private val _aviso = MutableStateFlow<String?>(null)
     val aviso = _aviso.asStateFlow()

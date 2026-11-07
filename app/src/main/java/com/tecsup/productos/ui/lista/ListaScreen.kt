@@ -1,5 +1,6 @@
 package com.tecsup.productos.ui.lista
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,12 +9,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -28,6 +35,8 @@ fun ListaScreen(vm: ListaViewModel, modifier: Modifier = Modifier, onProducto: (
     val estado by vm.estado.collectAsStateWithLifecycle()
     val aviso by vm.aviso.collectAsStateWithLifecycle()
     val busqueda by vm.busqueda.collectAsStateWithLifecycle()
+    val orden by vm.orden.collectAsStateWithLifecycle()
+    var mostrarOrden by remember { mutableStateOf(false) }
     Column(modifier = modifier.fillMaxSize().padding(20.dp)) {
         Text("Productos", style = MaterialTheme.typography.headlineMedium)
         Text(
@@ -48,6 +57,22 @@ fun ListaScreen(vm: ListaViewModel, modifier: Modifier = Modifier, onProducto: (
             },
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
         )
+        Box(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+            OutlinedButton(onClick = { mostrarOrden = true }) {
+                Text("Ordenar: ${orden.etiqueta}")
+            }
+            DropdownMenu(expanded = mostrarOrden, onDismissRequest = { mostrarOrden = false }) {
+                OrdenProductos.entries.forEach { opcion ->
+                    DropdownMenuItem(
+                        text = { Text(opcion.etiqueta) },
+                        onClick = {
+                            vm.cambiarOrden(opcion)
+                            mostrarOrden = false
+                        }
+                    )
+                }
+            }
+        }
         if (aviso != null) {
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
