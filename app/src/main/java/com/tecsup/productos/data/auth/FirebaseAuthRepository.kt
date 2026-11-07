@@ -1,6 +1,7 @@
 package com.tecsup.productos.data.auth
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tecsup.productos.domain.model.Rol
 import com.tecsup.productos.domain.model.Sesion
@@ -20,6 +21,17 @@ class FirebaseAuthRepository(
         throw e
     } catch (e: Exception) {
         auth.signOut()
+        Result.failure(e)
+    }
+
+    override suspend fun recuperarContrasena(correo: String): Result<Unit> = try {
+        auth.sendPasswordResetEmail(correo).await()
+        Result.success(Unit)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: FirebaseAuthInvalidUserException) {
+        Result.success(Unit)
+    } catch (e: Exception) {
         Result.failure(e)
     }
 

@@ -1,5 +1,6 @@
 package com.tecsup.productos.ui.login
 
+import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tecsup.productos.data.auth.AuthRepository
@@ -13,6 +14,9 @@ import kotlinx.coroutines.launch
 class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
     private val _estado = MutableStateFlow<UiState<Sesion?>>(UiState.Cargando)
     val estado = _estado.asStateFlow()
+
+    private val _recuperacion = MutableStateFlow<UiState<Unit>?>(null)
+    val recuperacion = _recuperacion.asStateFlow()
 
     init {
         verificarSesion()
@@ -32,6 +36,8 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
     }
 
     fun iniciarSesion(correo: String, clave: String) {
+        if (_estado.value is UiState.Cargando || _recuperacion.value is UiState.Cargando) return
+        _recuperacion.value = null
         if (correo.isBlank() || clave.isBlank()) {
             _estado.value = UiState.Error("Ingresa tu correo y contraseña.")
             return
@@ -42,6 +48,22 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
             _estado.value = resultado.fold(
                 onSuccess = { UiState.Exito(it) },
                 onFailure = { UiState.Error(mensajeDe(it)) },
+            )
+        }
+    }
+
+    fun recuperarContrasena(correo: String) {
+        if (_estado.value is UiState.Cargando || _recuperacion.value is UiState.Cargando) return
+        val correoLimpio = correo.trim()
+        if (!Patterns.EMAIL_ADDRESS.matcher(correoLimpio).matches()) {
+            _recuperacion.value = UiState.Error("Ingresa un correo válido para recuperar tu contraseña.")
+            return
+        }
+        _recuperacion.value = UiState.Cargando
+        viewModelScope.launch {
+            _recuperacion.value = authRepository.recuperarContrasena(correoLimpio).fold(
+                onSuccess = { UiState.Exito(Unit) },
+                onFailure = { UiState.Error("No se pudo solicitar el enlace. Revisa tu conexión e inténtalo de nuevo.") },
             )
         }
     }

@@ -13,6 +13,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tecsup.productos.domain.model.Sesion
 import com.tecsup.productos.ui.UiState
 
@@ -35,6 +37,8 @@ fun LoginScreen(
     var clave by rememberSaveable { mutableStateOf("") }
     val error = (estado as? UiState.Error)?.mensaje
     val cargando = estado is UiState.Cargando
+    val recuperacion by vm.recuperacion.collectAsStateWithLifecycle()
+    val enviando = recuperacion is UiState.Cargando
 
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -63,16 +67,23 @@ fun LoginScreen(
         }
         Button(
             onClick = { vm.iniciarSesion(correo, clave) },
-            enabled = !cargando,
+            enabled = !cargando && !enviando,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Ingresar")
         }
         if (cargando) CircularProgressIndicator()
-        Text(
-            "No se permite el registro. La cuenta carga su rol después de ingresar.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        TextButton(
+            onClick = { vm.recuperarContrasena(correo) },
+            enabled = !cargando && !enviando,
+        ) {
+            Text("Olvidé mi contraseña")
+        }
+        when (val solicitud = recuperacion) {
+            UiState.Cargando -> Text("Solicitando enlace…")
+            is UiState.Error -> Text(solicitud.mensaje, color = MaterialTheme.colorScheme.error)
+            is UiState.Exito -> Text("Si el correo está registrado, recibirás un enlace para cambiar tu contraseña.")
+            null -> Unit
+        }
     }
 }
