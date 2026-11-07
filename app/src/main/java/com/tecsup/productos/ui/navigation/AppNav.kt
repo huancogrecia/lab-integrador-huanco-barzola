@@ -8,6 +8,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -17,8 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tecsup.productos.AppContainer
+import com.tecsup.productos.domain.model.Rol
 import com.tecsup.productos.domain.model.Sesion
 import com.tecsup.productos.ui.UiState
+import com.tecsup.productos.ui.admin.AdminScreen
+import com.tecsup.productos.ui.admin.AdminViewModel
+import com.tecsup.productos.ui.admin.AdminViewModelFactory
 import com.tecsup.productos.ui.components.Cargando
 import com.tecsup.productos.ui.detalle.DetalleScreen
 import com.tecsup.productos.ui.detalle.DetalleViewModel
@@ -36,6 +41,7 @@ import com.tecsup.productos.ui.login.PerfilScreen
 
 private const val TAB_CATALOGO = "catalogo"
 private const val TAB_FAVORITOS = "favoritos"
+private const val TAB_ADMIN = "admin"
 private const val TAB_PERFIL = "perfil"
 
 @Composable
@@ -64,6 +70,12 @@ private fun NavegacionAutenticada(
 ) {
     var productoId by rememberSaveable { mutableStateOf<Int?>(null) }
     var tabSeleccionada by rememberSaveable { mutableStateOf(TAB_CATALOGO) }
+    LaunchedEffect(sesion.uid, sesion.rol) {
+        if (sesion.rol != Rol.ADMIN && tabSeleccionada == TAB_ADMIN) {
+            tabSeleccionada = TAB_CATALOGO
+        }
+    }
+
     val listaFactory = remember(container) { ListaViewModelFactory(container) }
     val favoritosFactory = remember(container) { FavoritosViewModelFactory(container) }
     val listaVm: ListaViewModel = viewModel(factory = listaFactory)
@@ -85,6 +97,15 @@ private fun NavegacionAutenticada(
                     vm = favoritosVm,
                     onProducto = { productoId = it },
                 )
+                TAB_ADMIN -> {
+                    if (sesion.rol == Rol.ADMIN) {
+                        val adminFactory = remember(container) { AdminViewModelFactory(container) }
+                        val adminVm: AdminViewModel = viewModel(factory = adminFactory)
+                        AdminScreen(adminVm)
+                    } else {
+                        ListaScreen(listaVm, onProducto = { productoId = it })
+                    }
+                }
                 TAB_PERFIL -> PerfilScreen(sesion, loginVm::cerrarSesion)
                 else -> ListaScreen(
                     vm = listaVm,
@@ -107,6 +128,14 @@ private fun NavegacionAutenticada(
                     icon = { Text("♥") },
                     label = { Text("Favoritos") },
                 )
+                if (sesion.rol == Rol.ADMIN) {
+                    NavigationBarItem(
+                        selected = tabSeleccionada == TAB_ADMIN,
+                        onClick = { tabSeleccionada = TAB_ADMIN },
+                        icon = { Text("▣") },
+                        label = { Text("Admin") },
+                    )
+                }
                 NavigationBarItem(
                     selected = tabSeleccionada == TAB_PERFIL,
                     onClick = { tabSeleccionada = TAB_PERFIL },
