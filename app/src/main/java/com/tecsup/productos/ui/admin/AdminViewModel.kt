@@ -3,6 +3,7 @@ package com.tecsup.productos.ui.admin
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tecsup.productos.data.repository.ItemRepository
+import com.tecsup.productos.notification.Notificador
 import com.tecsup.productos.ui.UiState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,10 @@ data class AdminResumen(
     val totalFavoritos: Int,
 )
 
-class AdminViewModel(private val repo: ItemRepository) : ViewModel() {
+class AdminViewModel(
+    private val repo: ItemRepository,
+    private val notificador: Notificador,
+) : ViewModel() {
     private val _estado = MutableStateFlow<UiState<AdminResumen>>(UiState.Cargando)
     val estado = _estado.asStateFlow()
 
@@ -47,6 +51,7 @@ class AdminViewModel(private val repo: ItemRepository) : ViewModel() {
                 repo.refrescar().fold(
                     onSuccess = { cantidad ->
                         _mensaje.value = "Sincronización completa: $cantidad productos guardados."
+                        notificador.mostrar("Datos actualizados", "Se guardaron $cantidad elementos")
                     },
                     onFailure = { error ->
                         _mensaje.value = "No se pudo sincronizar: ${mensajeDe(error)}"

@@ -7,7 +7,7 @@ import com.tecsup.productos.AppContainer
 class ListaViewModelFactory(private val container: AppContainer) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ListaViewModel::class.java)) {
-            return modelClass.cast(ListaViewModel(container.itemRepository))
+            return modelClass.cast(ListaViewModel(container.itemRepository, container.notificador))
                 ?: throw IllegalArgumentException("No se pudo crear ListaViewModel")
         }
         throw IllegalArgumentException("ViewModel desconocido")

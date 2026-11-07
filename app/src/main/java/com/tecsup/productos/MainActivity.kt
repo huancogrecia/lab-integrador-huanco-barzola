@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
+import com.tecsup.productos.notification.NotificationPermissionEffect
 import com.tecsup.productos.ui.navigation.AppNav
 import com.tecsup.productos.ui.theme.ProductosTheme
 
@@ -19,6 +20,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ProductosTheme {
+                NotificationPermissionEffect()
                 Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
                     AppNav(container = container, modifier = Modifier.padding(padding))
                 }
