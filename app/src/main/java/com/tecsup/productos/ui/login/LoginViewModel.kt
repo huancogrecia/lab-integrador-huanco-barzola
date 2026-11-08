@@ -3,6 +3,10 @@ package com.tecsup.productos.ui.login
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.tecsup.productos.data.auth.AuthRepository
 import com.tecsup.productos.domain.model.Sesion
 import com.tecsup.productos.ui.UiState
@@ -10,6 +14,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
     private val _estado = MutableStateFlow<UiState<Sesion?>>(UiState.Cargando)
@@ -73,8 +79,21 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
         _estado.value = UiState.Exito(null)
     }
 
-    private fun mensajeDe(error: Throwable): String = when (error) {
-        is IllegalStateException -> error.message ?: "El perfil de Firestore no está configurado."
-        else -> "No se pudo iniciar sesión. Verifica las credenciales y la conexión."
+    private fun mensajeDe(error: Throwable): String = when {
+        error is FirebaseNetworkException ||
+        error is UnknownHostException ||
+        error is SocketTimeoutException -> 
+            "No hay conexión a internet. Verifica tu red e inténtalo de nuevo."
+
+        error is IllegalStateException ||
+        error is FirebaseFirestoreException -> 
+            "No se pudo cargar el perfil de usuario. Contacta al administrador."
+
+        error is FirebaseAuthInvalidCredentialsException ||
+        error is FirebaseAuthInvalidUserException -> 
+            "Correo o contraseña incorrectos."
+
+        else -> 
+            "No se pudo iniciar sesión. Verifica tus datos e inténtalo de nuevo."
     }
 }
