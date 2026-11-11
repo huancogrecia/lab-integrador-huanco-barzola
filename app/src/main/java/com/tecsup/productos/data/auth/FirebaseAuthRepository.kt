@@ -2,7 +2,9 @@ package com.tecsup.productos.data.auth
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.tecsup.productos.domain.model.Rol
 import com.tecsup.productos.domain.model.Sesion
 import kotlinx.coroutines.CancellationException
@@ -22,6 +24,38 @@ class FirebaseAuthRepository(
     } catch (e: Exception) {
         auth.signOut()
         Result.failure(e)
+    }
+
+    override suspend fun registrar(nombre: String, correo: String, clave: String): Result<Sesion> {
+        var perfilListo = false
+        try {
+            val credenciales = try {
+                auth.createUserWithEmailAndPassword(correo, clave).await()
+            } catch (_: FirebaseAuthUserCollisionException) {
+                auth.signInWithEmailAndPassword(correo, clave).await()
+            }
+            val usuario = checkNotNull(credenciales.user)
+            val perfil = db.collection("usuarios").document(usuario.uid)
+
+            db.runTransaction { transaccion ->
+                if (transaccion.get(perfil).exists()) {
+                    throw FirebaseFirestoreException(
+                        "Ya existe un perfil para esta cuenta.",
+                        FirebaseFirestoreException.Code.ALREADY_EXISTS,
+                    )
+                }
+                transaccion.set(perfil, mapOf("nombre" to nombre, "rol" to "usuario"))
+            }.await()
+
+            perfilListo = true
+            return Result.success(Sesion(uid = usuario.uid, correo = usuario.email ?: correo, rol = Rol.USUARIO))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Result.failure(e)
+        } finally {
+            if (!perfilListo) auth.signOut()
+        }
     }
 
     override suspend fun recuperarContrasena(correo: String): Result<Unit> = try {

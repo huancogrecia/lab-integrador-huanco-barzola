@@ -25,8 +25,12 @@ fun FavoritosScreen(
     modifier: Modifier = Modifier,
 ) {
     val estado by vm.estado.collectAsStateWithLifecycle()
+    val errorFavorito by vm.errorFavorito.collectAsStateWithLifecycle()
     Column(modifier = modifier.fillMaxSize().padding(20.dp)) {
         Text("Favoritos", style = MaterialTheme.typography.headlineMedium)
+        errorFavorito?.let { mensaje ->
+            Text(mensaje, color = MaterialTheme.colorScheme.error)
+        }
         when (val actual = estado) {
             UiState.Cargando -> Cargando()
             is UiState.Error -> ErrorView(actual.mensaje, vm::observar)

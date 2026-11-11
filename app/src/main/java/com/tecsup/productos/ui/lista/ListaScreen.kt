@@ -1,27 +1,33 @@
 package com.tecsup.productos.ui.lista
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -31,78 +37,115 @@ import com.tecsup.productos.ui.components.ErrorView
 import com.tecsup.productos.ui.components.TarjetaProducto
 
 @Composable
-fun ListaScreen(vm: ListaViewModel, modifier: Modifier = Modifier, onProducto: (Int) -> Unit) {
+fun ListaScreen(
+    vm: ListaViewModel,
+    modifier: Modifier = Modifier,
+    puedeGuardarFavoritos: Boolean = true,
+    onProducto: (Int) -> Unit,
+) {
     val estado by vm.estado.collectAsStateWithLifecycle()
+    val errorFavorito by vm.errorFavorito.collectAsStateWithLifecycle()
     val aviso by vm.aviso.collectAsStateWithLifecycle()
     val busqueda by vm.busqueda.collectAsStateWithLifecycle()
     val orden by vm.orden.collectAsStateWithLifecycle()
     var mostrarOrden by remember { mutableStateOf(false) }
-    Column(modifier = modifier.fillMaxSize().padding(20.dp)) {
-        Text("Productos", style = MaterialTheme.typography.headlineMedium)
-        Text(
-            text = "Catálogo de productos",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp, bottom = 20.dp),
-        )
-        OutlinedTextField(
-            value = busqueda,
-            onValueChange = vm::cambiarBusqueda,
-            label = { Text("Buscar por nombre o marca") },
-            singleLine = true,
-            trailingIcon = {
-                if (busqueda.isNotEmpty()) {
-                    TextButton(onClick = { vm.cambiarBusqueda("") }) { Text("Limpiar") }
-                }
-            },
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-        )
-        Box(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-            OutlinedButton(onClick = { mostrarOrden = true }) {
-                Text("Ordenar: ${orden.etiqueta}")
-            }
-            DropdownMenu(expanded = mostrarOrden, onDismissRequest = { mostrarOrden = false }) {
-                OrdenProductos.entries.forEach { opcion ->
-                    DropdownMenuItem(
-                        text = { Text(opcion.etiqueta) },
-                        onClick = {
-                            vm.cambiarOrden(opcion)
-                            mostrarOrden = false
-                        }
-                    )
-                }
-            }
-        }
-        if (aviso != null) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                shape = RoundedCornerShape(12.dp),
-            ) {
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Productos", style = MaterialTheme.typography.headlineLarge)
                 Text(
-                    text = aviso.orEmpty(),
+                    text = "Catálogo de laptops",
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(12.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
+        item {
+            OutlinedTextField(
+                value = busqueda,
+                onValueChange = vm::cambiarBusqueda,
+                label = { Text("Buscar por nombre o marca") },
+                singleLine = true,
+                shape = RoundedCornerShape(18.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                ),
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (busqueda.isNotEmpty()) {
+                        TextButton(onClick = { vm.cambiarBusqueda("") }) { Text("Limpiar") }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        item {
+            Box {
+                OutlinedButton(onClick = { mostrarOrden = true }) {
+                    Text("Ordenar: ${orden.etiqueta}")
+                    Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null)
+                }
+                DropdownMenu(expanded = mostrarOrden, onDismissRequest = { mostrarOrden = false }) {
+                    OrdenProductos.entries.forEach { opcion ->
+                        DropdownMenuItem(
+                            text = { Text(opcion.etiqueta) },
+                            onClick = {
+                                vm.cambiarOrden(opcion)
+                                mostrarOrden = false
+                            },
+                        )
+                    }
+                }
+            }
+        }
+        aviso?.let { mensaje ->
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Text(text = mensaje, style = MaterialTheme.typography.bodyMedium)
+                        TextButton(onClick = vm::cargar) { Text("Reintentar") }
+                    }
+                }
+            }
+        }
+        errorFavorito?.let { mensaje ->
+            item { Text(mensaje, color = MaterialTheme.colorScheme.error) }
+        }
         when (val actual = estado) {
-            UiState.Cargando -> Cargando()
-            is UiState.Error -> ErrorView(actual.mensaje, vm::cargar)
+            UiState.Cargando -> item { Cargando() }
+            is UiState.Error -> item { ErrorView(actual.mensaje, vm::cargar) }
             is UiState.Exito -> {
                 if (actual.datos.isEmpty()) {
-                    Text(if (busqueda.isBlank()) "No hay productos disponibles" else "No se encontraron productos")
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(actual.datos, key = { it.id }) { item ->
-                            TarjetaProducto(
-                                item = item,
-                                onClick = { onProducto(item.id) },
-                                onAlternarFavorito = { vm.alternarFavorito(item.id) },
-                            )
-                        }
+                    item {
+                        Text(
+                            text = if (busqueda.isBlank()) "No hay productos disponibles"
+                            else "No se encontraron productos",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
+                }
+                items(actual.datos, key = { it.id }) { producto ->
+                    TarjetaProducto(
+                        item = producto,
+                        onClick = { onProducto(producto.id) },
+                        onAlternarFavorito = if (puedeGuardarFavoritos) {
+                            { vm.alternarFavorito(producto.id) }
+                        } else {
+                            null
+                        },
+                    )
                 }
             }
         }

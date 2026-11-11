@@ -2,10 +2,11 @@ package com.tecsup.productos.ui.admin
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -26,32 +27,32 @@ import com.tecsup.productos.ui.UiState
 import com.tecsup.productos.ui.components.Cargando
 
 @Composable
-fun AdminScreen(vm: AdminViewModel, modifier: Modifier = Modifier) {
+fun AdminScreen(
+    vm: AdminViewModel,
+    onVerPedidos: () -> Unit,
+    onVerInventario: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val estado by vm.estado.collectAsStateWithLifecycle()
     val ocupado by vm.ocupado.collectAsStateWithLifecycle()
     val mensaje by vm.mensaje.collectAsStateWithLifecycle()
     var confirmarLimpieza by rememberSaveable { mutableStateOf(false) }
 
     Column(
-        modifier = modifier.fillMaxSize().padding(20.dp),
+        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text("Panel de administración", style = MaterialTheme.typography.headlineMedium)
         when (val actual = estado) {
             UiState.Cargando -> Cargando()
-            is UiState.Error -> Text(actual.mensaje, color = MaterialTheme.colorScheme.error)
-            is UiState.Exito -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Card(modifier = Modifier.weight(1f)) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Guardados", style = MaterialTheme.typography.bodyMedium)
-                        Text("${actual.datos.totalGuardado}", style = MaterialTheme.typography.headlineMedium)
-                    }
-                }
-                Card(modifier = Modifier.weight(1f)) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Favoritos", style = MaterialTheme.typography.bodyMedium)
-                        Text("${actual.datos.totalFavoritos}", style = MaterialTheme.typography.headlineMedium)
-                    }
+            is UiState.Error -> {
+                Text(actual.mensaje, color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = vm::observarProductos) { Text("Reintentar") }
+            }
+            is UiState.Exito -> Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Productos guardados", style = MaterialTheme.typography.bodyMedium)
+                    Text("${actual.datos}", style = MaterialTheme.typography.headlineMedium)
                 }
             }
         }
@@ -68,6 +69,12 @@ fun AdminScreen(vm: AdminViewModel, modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Limpiar caché")
+        }
+        Button(onClick = onVerPedidos, modifier = Modifier.fillMaxWidth()) {
+            Text("Ver pedidos de clientes")
+        }
+        Button(onClick = onVerInventario, modifier = Modifier.fillMaxWidth()) {
+            Text("Gestionar stock")
         }
         if (ocupado) CircularProgressIndicator()
         if (mensaje != null) Text(mensaje.orEmpty(), style = MaterialTheme.typography.bodyMedium)

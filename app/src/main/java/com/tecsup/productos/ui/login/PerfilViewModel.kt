@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.tecsup.productos.data.preferences.PreferenciasRepository
 import com.tecsup.productos.data.repository.ItemRepository
 import com.tecsup.productos.ui.UiState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,14 +25,18 @@ class PerfilViewModel(
         initialValue = false,
     )
 
+    private var observador: Job? = null
+
     init {
         observar()
     }
 
     fun observar() {
-        viewModelScope.launch {
+        observador?.cancel()
+        _estado.value = UiState.Cargando
+        observador = viewModelScope.launch {
             repo.favoritos
-                .catch { _estado.value = UiState.Error("No se pudo cargar la cantidad de favoritos") }
+                .catch { _estado.value = UiState.Error("No pudimos cargar tu cantidad de favoritos.") }
                 .collect { favoritos -> _estado.value = UiState.Exito(favoritos.size) }
         }
     }

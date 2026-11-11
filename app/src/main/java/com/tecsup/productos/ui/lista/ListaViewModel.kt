@@ -6,6 +6,7 @@ import com.tecsup.productos.data.repository.ItemRepository
 import com.tecsup.productos.domain.model.Item
 import com.tecsup.productos.notification.Notificador
 import com.tecsup.productos.ui.UiState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -75,8 +76,15 @@ class ListaViewModel(
     private var refrescoEnCurso = false
     private var errorSinDatos: Throwable? = null
 
+    private var observador: Job? = null
+
     init {
-        viewModelScope.launch {
+        cargar()
+    }
+
+    private fun observarProductos() {
+        if (observador?.isActive == true) return
+        observador = viewModelScope.launch {
             repo.items
                 .catch { error ->
                     errorSinDatos = error
@@ -91,57 +99,82 @@ class ListaViewModel(
                     }
                 }
         }
-        cargar()
     }
 
     fun cargar() {
         carga?.cancel()
+        observarProductos()
         carga = viewModelScope.launch {
-            val actuales = repo.items.first()
-            refrescoEnCurso = true
-            if (actuales.isEmpty()) {
-                _estado.value = UiState.Cargando
+            try {
+                actualizarCatalogo()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorSinDatos = e
+                refrescoEnCurso = false
+                _aviso.value = null
+                _estado.value = UiState.Error("No pudimos cargar los productos guardados.")
             }
-
-            val resultado = repo.refrescar()
-            val guardados = repo.items.first()
-            primeraCargaTerminada = true
-            resultado.fold(
-                onSuccess = { cantidad ->
-                    errorSinDatos = null
-                    refrescoEnCurso = false
-                    _aviso.value = null
-                    _estado.value = UiState.Exito(guardados)
-                    notificador.mostrar("Datos actualizados", "Se guardaron $cantidad elementos")
-                },
-                onFailure = { error ->
-                    if (guardados.isEmpty()) {
-                        errorSinDatos = error
-                        refrescoEnCurso = false
-                        _aviso.value = null
-                        _estado.value = UiState.Error(mensajeDe(error))
-                    } else {
-                        errorSinDatos = null
-                        refrescoEnCurso = false
-                        _aviso.value = if (error is IOException) {
-                            "Sin conexión: mostrando datos guardados"
-                        } else {
-                            "No se pudo actualizar: mostrando datos guardados"
-                        }
-                        _estado.value = UiState.Exito(guardados)
-                    }
-                },
-            )
         }
     }
 
+    private suspend fun actualizarCatalogo() {
+        val actuales = repo.items.first()
+        refrescoEnCurso = true
+        if (actuales.isEmpty()) {
+            _estado.value = UiState.Cargando
+        }
+
+        val resultado = repo.refrescar()
+        val guardados = repo.items.first()
+        primeraCargaTerminada = true
+        resultado.fold(
+            onSuccess = { cantidad ->
+                errorSinDatos = null
+                refrescoEnCurso = false
+                _aviso.value = null
+                _estado.value = UiState.Exito(guardados)
+                notificador.mostrar("Datos actualizados", "Se guardaron $cantidad elementos")
+            },
+            onFailure = { error ->
+                if (guardados.isEmpty()) {
+                    errorSinDatos = error
+                    refrescoEnCurso = false
+                    _aviso.value = null
+                    _estado.value = UiState.Error(mensajeDe(error))
+                } else {
+                    errorSinDatos = null
+                    refrescoEnCurso = false
+                    _aviso.value = if (error is IOException) {
+                        "Mostramos los productos guardados. Revisa tu conexión para actualizarlos."
+                    } else {
+                        "No pudimos actualizar el catálogo. Mostramos los productos guardados."
+                    }
+                    _estado.value = UiState.Exito(guardados)
+                }
+            },
+        )
+    }
+
+    private val _errorFavorito = MutableStateFlow<String?>(null)
+    val errorFavorito = _errorFavorito.asStateFlow()
+
     fun alternarFavorito(id: Int) {
-        viewModelScope.launch { repo.alternarFavorito(id) }
+        viewModelScope.launch {
+            _errorFavorito.value = null
+            try {
+                repo.alternarFavorito(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _errorFavorito.value = "No pudimos cambiar tus favoritos. Vuelve a tocar el corazón."
+            }
+        }
     }
 
     private fun mensajeDe(error: Throwable): String = when (error) {
-        is IOException -> "No hay conexión a internet"
-        is HttpException -> "El servidor respondió con error ${error.code()}"
-        else -> error.localizedMessage ?: "No se pudieron cargar los productos"
+        is IOException -> "No pudimos actualizar los productos. Revisa tu conexión."
+        is HttpException -> "El catálogo no está disponible en este momento."
+        else -> "No pudimos cargar los productos."
     }
 }

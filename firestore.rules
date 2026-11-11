@@ -1,9 +1,130 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function rolActual() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol;
+    }
+
+    function esAdmin() {
+      return request.auth != null && rolActual() == 'admin';
+    }
+
+    function idPropio(pedidoId) {
+      return request.auth != null && pedidoId.split(':').size() == 2
+        && pedidoId.split(':')[0] == request.auth.uid
+        && pedidoId.split(':')[1].matches('[a-f0-9-]{36}');
+    }
+
+    function subtotalValido(linea, catalogo) {
+      let productoId = linea.productoId;
+      let nombre = linea.producto;
+      let cantidad = linea.cantidad;
+      let precio = linea.precioCentavos;
+      let unidades = catalogo.get(string(productoId), -1);
+      return linea.keys().size() == 4
+        && productoId is int && productoId > 0
+        && nombre is string && nombre.size() > 0 && nombre.size() <= 200
+        && cantidad is int && cantidad >= 1 && cantidad <= 10
+        && precio is int && precio >= 0 && precio <= 100000000
+        && unidades is int && unidades >= cantidad && unidades <= 9999
+        ? cantidad * precio : -1;
+    }
+
+    function importeValido(lineas, total, catalogo) {
+      let a = subtotalValido(lineas[0], catalogo);
+      let b = lineas.size() > 1 ? subtotalValido(lineas[1], catalogo) : 0;
+      let c = lineas.size() > 2 ? subtotalValido(lineas[2], catalogo) : 0;
+      let d = lineas.size() > 3 ? subtotalValido(lineas[3], catalogo) : 0;
+      let e = lineas.size() > 4 ? subtotalValido(lineas[4], catalogo) : 0;
+      return ![a, b, c, d, e].hasAny([-1]) && total == a + b + c + d + e;
+    }
+
+    function descuentoCorrecto(linea, antes, despues) {
+      let id = string(linea.productoId);
+      let unidades = antes.get(id, -1);
+      return unidades is int && unidades >= linea.cantidad
+        && despues.get(id, -1) == unidades - linea.cantidad;
+    }
+
+    function descuentosValidos(lineas, antes, despues) {
+      return lineas.size() >= 1 && lineas.size() <= 10
+        && (lineas.size() <= 0 || descuentoCorrecto(lineas[0], antes, despues))
+        && (lineas.size() <= 1 || descuentoCorrecto(lineas[1], antes, despues))
+        && (lineas.size() <= 2 || descuentoCorrecto(lineas[2], antes, despues))
+        && (lineas.size() <= 3 || descuentoCorrecto(lineas[3], antes, despues))
+        && (lineas.size() <= 4 || descuentoCorrecto(lineas[4], antes, despues))
+        && (lineas.size() <= 5 || descuentoCorrecto(lineas[5], antes, despues))
+        && (lineas.size() <= 6 || descuentoCorrecto(lineas[6], antes, despues))
+        && (lineas.size() <= 7 || descuentoCorrecto(lineas[7], antes, despues))
+        && (lineas.size() <= 8 || descuentoCorrecto(lineas[8], antes, despues))
+        && (lineas.size() <= 9 || descuentoCorrecto(lineas[9], antes, despues));
+    }
+
+    function descuentaStock(pedido) {
+      let ruta = /databases/$(database)/documents/inventario/catalogo;
+      let antes = get(ruta).data.existencias;
+      let despues = getAfter(ruta).data.existencias;
+      let lineas = pedido.get('lineas', null) != null
+        ? pedido.lineas : [{'productoId': pedido.productoId, 'cantidad': pedido.cantidad}];
+      return despues.diff(antes).affectedKeys().size() == lineas.size()
+        && descuentosValidos(lineas, antes, despues);
+    }
+
+    match /inventario/catalogo {
+      allow get: if request.auth != null;
+      allow create, update: if esAdmin()
+        && request.resource.data.keys().hasOnly(['existencias'])
+        && request.resource.data.existencias is map;
+    }
+
+    function idEn(lineas, i) {
+      return i < lineas.size() ? lineas[i].productoId : 0;
+    }
+
+    function pedidoValido(pedido) {
+      let lineas = pedido.lineas;
+      let total = pedido.totalCentavos;
+      let catalogo = get(/databases/$(database)/documents/inventario/catalogo).data.existencias;
+      return lineas is list && lineas.size() >= 1 && lineas.size() <= 5
+        && total is int
+        && importeValido(lineas, total, catalogo)
+        && [idEn(lineas, 0), idEn(lineas, 1), idEn(lineas, 2), idEn(lineas, 3), idEn(lineas, 4)]
+          .toSet().size() == lineas.size() + (lineas.size() < 5 ? 1 : 0);
+    }
+
+    match /pedidos/{pedidoId} {
+      allow get: if idPropio(pedidoId) || esAdmin();
+      allow list: if request.auth != null
+        && (resource.data.uid == request.auth.uid || esAdmin());
+
+      allow create: if idPropio(pedidoId) && rolActual() == 'usuario'
+        && request.resource.data.keys().hasAll(['uid', 'correo', 'lineas', 'totalCentavos', 'estado', 'fecha'])
+        && request.resource.data.keys().hasOnly(['uid', 'correo', 'lineas', 'totalCentavos', 'estado', 'fecha'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.correo == request.auth.token.email
+        && pedidoValido(request.resource.data)
+        && request.resource.data.estado == 'PENDIENTE'
+        && request.resource.data.fecha == request.time;
+
+      allow update: if esAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado'])
+        && ((resource.data.estado == 'PENDIENTE' && request.resource.data.estado == 'CONFIRMADO'
+            && descuentaStock(resource.data))
+          || (resource.data.estado == 'CONFIRMADO' && request.resource.data.estado == 'ENTREGADO'));
+
+      allow delete: if false;
+    }
+
     match /usuarios/{uid} {
       allow get: if request.auth != null && request.auth.uid == uid;
-      allow list, create, update, delete: if false;
+      allow create: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasAll(['nombre', 'rol'])
+        && request.resource.data.keys().hasOnly(['nombre', 'rol'])
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() > 0
+        && request.resource.data.nombre.size() <= 100
+        && request.resource.data.rol == 'usuario';
+      allow list, update, delete: if false;
     }
   }
 }

@@ -9,5 +9,4 @@ data class ItemEntity(
     val titulo: String,
     val subtitulo: String,
     val imagenUrl: String?,
-    val esFavorito: Boolean = false
 )

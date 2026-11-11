@@ -3,6 +3,12 @@ package com.tecsup.productos.ui.login
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.tecsup.productos.data.auth.AuthRepository
 import com.tecsup.productos.domain.model.Sesion
 import com.tecsup.productos.ui.UiState
@@ -17,6 +23,9 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     private val _recuperacion = MutableStateFlow<UiState<Unit>?>(null)
     val recuperacion = _recuperacion.asStateFlow()
+
+    private val _registro = MutableStateFlow<UiState<Unit>?>(null)
+    val registro = _registro.asStateFlow()
 
     init {
         verificarSesion()
@@ -68,13 +77,70 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
         }
     }
 
+    fun limpiarRegistro() {
+        if (_registro.value !is UiState.Cargando) _registro.value = null
+    }
+
+    fun registrar(nombre: String, correo: String, clave: String, confirmacion: String) {
+        if (_registro.value is UiState.Cargando ||
+            _estado.value is UiState.Cargando ||
+            _recuperacion.value is UiState.Cargando
+        ) return
+
+        val nombreLimpio = nombre.trim()
+        val correoLimpio = correo.trim()
+        val error = when {
+            nombreLimpio.isBlank() -> "Ingresa tu nombre."
+            nombreLimpio.length > 100 -> "El nombre puede tener hasta 100 caracteres."
+            !Patterns.EMAIL_ADDRESS.matcher(correoLimpio).matches() -> "Ingresa un correo válido."
+            clave.isBlank() -> "Ingresa una contraseña."
+            clave.length < 6 -> "La contraseña debe tener al menos 6 caracteres."
+            clave != confirmacion -> "Las contraseñas no coinciden."
+            else -> null
+        }
+        if (error != null) {
+            _registro.value = UiState.Error(error)
+            return
+        }
+
+        _registro.value = UiState.Cargando
+        viewModelScope.launch {
+            authRepository.registrar(nombreLimpio, correoLimpio, clave).fold(
+                onSuccess = { sesion ->
+                    _recuperacion.value = null
+                    _estado.value = UiState.Exito(sesion)
+                    _registro.value = null
+                },
+                onFailure = { _registro.value = UiState.Error(mensajeRegistro(it)) },
+            )
+        }
+    }
+
+    private fun mensajeRegistro(error: Throwable): String = when (error) {
+        is FirebaseAuthWeakPasswordException -> "La contraseña no cumple los requisitos de seguridad."
+        is FirebaseAuthInvalidCredentialsException,
+        is FirebaseAuthInvalidUserException,
+        is FirebaseAuthUserCollisionException -> "No se pudo registrar la cuenta. Si ya tienes una, inicia sesión."
+        is FirebaseNetworkException -> "Revisa tu conexión e inténtalo de nuevo."
+        is FirebaseFirestoreException -> when (error.code) {
+            FirebaseFirestoreException.Code.ALREADY_EXISTS -> "Ya tienes una cuenta. Inicia sesión."
+            FirebaseFirestoreException.Code.PERMISSION_DENIED -> "El registro de perfiles aún no está habilitado."
+            else -> "No se pudo completar el perfil. Reintenta con los mismos datos."
+        }
+        else -> "No se pudo completar el registro. Inténtalo de nuevo."
+    }
+
     fun cerrarSesion() {
         authRepository.cerrarSesion()
         _estado.value = UiState.Exito(null)
     }
 
     private fun mensajeDe(error: Throwable): String = when (error) {
-        is IllegalStateException -> error.message ?: "El perfil de Firestore no está configurado."
-        else -> "No se pudo iniciar sesión. Verifica las credenciales y la conexión."
+        is FirebaseNetworkException -> "No pudimos conectarnos. Revisa tu conexión e inténtalo de nuevo."
+        is FirebaseAuthInvalidCredentialsException,
+        is FirebaseAuthInvalidUserException -> "El correo o la contraseña son incorrectos."
+        is IllegalStateException -> "Tu cuenta aún no tiene acceso. Comunícate con el administrador."
+        is FirebaseFirestoreException -> "No pudimos cargar tu perfil. Revisa tu conexión o comunícate con el administrador."
+        else -> "No se pudo iniciar sesión. Revisa tu correo, contraseña y conexión."
     }
 }
